@@ -70,7 +70,7 @@ func InstallTunnel(configPath string) error {
 		if !serviceBelongsToThisInstall(service, path) { service.Close(); return errors.New("Tunnel name is already used by another AmneziaWG installation") }
 		status, err := service.Query()
 		if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { service.Close(); return err }
-		if status.State != svc.Stopped && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { service.Close(); return errors.New("Tunnel already installed and running") }
+		if err != windows.ERROR_SERVICE_MARKED_FOR_DELETE && status.State != svc.Stopped { service.Close(); return errors.New("Tunnel already installed and running") }
 		err = service.Delete(); service.Close(); if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { return err }
 		for { service, err = m.OpenService(serviceName); if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { break }; service.Close(); time.Sleep(time.Second / 3) }
 	}
