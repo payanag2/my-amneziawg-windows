@@ -1,0 +1,71 @@
+name: Build and Release MyAmneziaWG
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag, e.g. v3.1.0'
+        required: true
+        default: 'v3.1.0'
+      prerelease:
+        description: 'Mark release as prerelease'
+        required: false
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build binaries
+        shell: cmd
+        run: build7.bat
+
+      - name: Build MSI
+        shell: cmd
+        run: installer\build7.bat
+
+      - name: Collect release files
+        shell: pwsh
+        run: |
+          $version = (Get-Content version\version.go | Select-String 'Number\s*=\s*"([^"]+)"').Matches.Groups[1].Value
+          if (-not $version) { throw 'Could not determine version' }
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Get-ChildItem installer\dist -File -Recurse | Copy-Item -Destination release -Force
+          Get-ChildItem release -File | ForEach-Object {
+            $newName = "MyAmneziaWG-$version-Windows-x64.msi"
+            if ($_.Extension -ieq '.msi') { Rename-Item $_.FullName $newName -Force }
+          }
+          Get-ChildItem release -File | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -Append release\SHA256SUMS.txt -Encoding ascii
+          }
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyAmneziaWG-installer
+          path: release\*
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
+          name: MyAmneziaWG ${{ github.event.inputs.release_tag || github.ref_name }}
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          generate_release_notes: true
+          files: |
+            release/*.msi
+            release/SHA256SUMS.txt
