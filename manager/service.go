@@ -350,7 +350,7 @@ loop:
 }
 
 func Run() error {
-	return svc.Run("AmneziaWGManager", &managerService{})
+	return svc.Run("MyAmneziaWGManager", &managerService{})
 }
 
 func LogFile(createRoot bool) (string, error) {
