@@ -23,13 +23,8 @@ import (
 var cachedServiceManager *mgr.Mgr
 
 func serviceManager() (*mgr.Mgr, error) {
-	if cachedServiceManager != nil {
-		return cachedServiceManager, nil
-	}
-	m, err := mgr.Connect()
-	if err != nil {
-		return nil, err
-	}
+	if cachedServiceManager != nil { return cachedServiceManager, nil }
+	m, err := mgr.Connect(); if err != nil { return nil, err }
 	cachedServiceManager = m
 	return cachedServiceManager, nil
 }
@@ -37,146 +32,71 @@ func serviceManager() (*mgr.Mgr, error) {
 var ErrManagerAlreadyRunning = errors.New("Manager already installed and running")
 
 func InstallManager() error {
-	m, err := serviceManager()
-	if err != nil { return err }
-	path, err := os.Executable()
-	if err != nil { return nil }
-
+	m, err := serviceManager(); if err != nil { return err }
+	path, err := os.Executable(); if err != nil { return nil }
 	serviceName := "MyAmneziaWGManager"
 	service, err := m.OpenService(serviceName)
 	if err == nil {
-		status, err := service.Query()
-		if err != nil { service.Close(); return err }
-		if status.State != svc.Stopped {
-			service.Close()
-			if status.State == svc.StartPending { return nil }
-			return ErrManagerAlreadyRunning
-		}
-		err = service.Delete()
-		service.Close()
-		if err != nil { return err }
-		for {
-			service, err = m.OpenService(serviceName)
-			if err != nil { break }
-			service.Close()
-			time.Sleep(time.Second / 3)
-		}
+		status, err := service.Query(); if err != nil { service.Close(); return err }
+		if status.State != svc.Stopped { service.Close(); if status.State == svc.StartPending { return nil }; return ErrManagerAlreadyRunning }
+		err = service.Delete(); service.Close(); if err != nil { return err }
+		for { service, err = m.OpenService(serviceName); if err != nil { break }; service.Close(); time.Sleep(time.Second / 3) }
 	}
-
 	config := mgr.Config{ServiceType: windows.SERVICE_WIN32_OWN_PROCESS, StartType: mgr.StartAutomatic, ErrorControl: mgr.ErrorNormal, DisplayName: "My AmneziaWG Manager"}
 	service, err = m.CreateService(serviceName, path, config, "/managerservice")
 	if err != nil { return err }
-	service.Start()
-	return service.Close()
+	service.Start(); return service.Close()
 }
 
 func UninstallManager() error {
-	m, err := serviceManager()
-	if err != nil { return err }
-	service, err := m.OpenService("MyAmneziaWGManager")
-	if err != nil { return err }
-	service.Control(svc.Stop)
-	err = service.Delete()
-	err2 := service.Close()
-	if err != nil { return err }
-	return err2
+	m, err := serviceManager(); if err != nil { return err }
+	service, err := m.OpenService("MyAmneziaWGManager"); if err != nil { return err }
+	service.Control(svc.Stop); err = service.Delete(); err2 := service.Close(); if err != nil { return err }; return err2
 }
 
 func serviceBelongsToThisInstall(service *mgr.Service, executablePath string) bool {
-	config, err := service.Config()
-	if err != nil { return false }
-	args, err := windows.DecomposeCommandLine(config.BinaryPathName)
-	if err != nil || len(args) < 1 { return false }
+	config, err := service.Config(); if err != nil { return false }
+	args, err := windows.DecomposeCommandLine(config.BinaryPathName); if err != nil || len(args) < 1 { return false }
 	return strings.EqualFold(args[0], executablePath)
 }
 
 func InstallTunnel(configPath string) error {
-	m, err := serviceManager()
-	if err != nil { return err }
-	path, err := os.Executable()
-	if err != nil { return nil }
-
-	name, err := conf.NameFromPath(configPath)
-	if err != nil { return err }
-	serviceName, err := services.ServiceNameOfTunnel(name)
-	if err != nil { return err }
-
+	m, err := serviceManager(); if err != nil { return err }
+	path, err := os.Executable(); if err != nil { return nil }
+	name, err := conf.NameFromPath(configPath); if err != nil { return err }
+	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return err }
 	service, err := m.OpenService(serviceName)
 	if err == nil {
-		if !serviceBelongsToThisInstall(service, path) {
-			service.Close()
-			return errors.New("Tunnel name is already used by another AmneziaWG installation")
-		}
+		if !serviceBelongsToThisInstall(service, path) { service.Close(); return errors.New("Tunnel name is already used by another AmneziaWG installation") }
 		status, err := service.Query()
-		if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE {
-			service.Close(); return err
-		}
-		if status.State != svc.Stopped && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE {
-			service.Close(); return errors.New("Tunnel already installed and running")
-		}
-		err = service.Delete()
-		service.Close()
-		if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { return err }
-		for {
-			service, err = m.OpenService(serviceName)
-			if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { break }
-			service.Close()
-			time.Sleep(time.Second / 3)
-		}
+		if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { service.Close(); return err }
+		if status.State != svc.Stopped && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { service.Close(); return errors.New("Tunnel already installed and running") }
+		err = service.Delete(); service.Close(); if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { return err }
+		for { service, err = m.OpenService(serviceName); if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { break }; service.Close(); time.Sleep(time.Second / 3) }
 	}
-
-	config := mgr.Config{
-		ServiceType: windows.SERVICE_WIN32_OWN_PROCESS,
-		StartType: mgr.StartAutomatic,
-		ErrorControl: mgr.ErrorNormal,
-		Dependencies: []string{"Nsi", "TcpIp"},
-		DisplayName: "My AmneziaWG Tunnel: " + name,
-		SidType: windows.SERVICE_SID_TYPE_UNRESTRICTED,
-	}
+	config := mgr.Config{ServiceType: windows.SERVICE_WIN32_OWN_PROCESS, StartType: mgr.StartAutomatic, ErrorControl: mgr.ErrorNormal, Dependencies: []string{"Nsi", "TcpIp"}, DisplayName: "My AmneziaWG Tunnel: " + name, SidType: windows.SERVICE_SID_TYPE_UNRESTRICTED}
 	service, err = m.CreateService(serviceName, path, config, "/tunnelservice", configPath)
 	if err != nil { return err }
-	err = service.Start()
-	go trackTunnelService(name, service)
-	return err
+	err = service.Start(); go trackTunnelService(name, service); return err
 }
 
 func UninstallTunnel(name string) error {
-	m, err := serviceManager()
-	if err != nil { return err }
-	path, err := os.Executable()
-	if err != nil { return err }
-	serviceName, err := services.ServiceNameOfTunnel(name)
-	if err != nil { return err }
-	service, err := m.OpenService(serviceName)
-	if err != nil { return err }
-	if !serviceBelongsToThisInstall(service, path) {
-		service.Close()
-		return errors.New("Tunnel belongs to another AmneziaWG installation")
-	}
-	service.Control(svc.Stop)
-	err = service.Delete()
-	err2 := service.Close()
-	if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { return err }
-	return err2
+	m, err := serviceManager(); if err != nil { return err }
+	path, err := os.Executable(); if err != nil { return err }
+	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return err }
+	service, err := m.OpenService(serviceName); if err != nil { return err }
+	if !serviceBelongsToThisInstall(service, path) { service.Close(); return errors.New("Tunnel belongs to another AmneziaWG installation") }
+	service.Control(svc.Stop); err = service.Delete(); err2 := service.Close(); if err != nil && err != windows.ERROR_SERVICE_MARKED_FOR_DELETE { return err }; return err2
 }
 
 func changeTunnelServiceConfigFilePath(name, oldPath, newPath string) {
 	var err error
 	defer func() { if err != nil { log.Printf("Unable to change tunnel service command line argument from %#q to %#q: %v", oldPath, newPath, err) } }()
-	m, err := serviceManager()
-	if err != nil { return }
-	serviceName, err := services.ServiceNameOfTunnel(name)
-	if err != nil { return }
-	service, err := m.OpenService(serviceName)
-	if err == windows.ERROR_SERVICE_DOES_NOT_EXIST { return } else if err != nil { return }
-	defer service.Close()
-	config, err := service.Config()
-	if err != nil { return }
-	exePath, err := os.Executable()
-	if err != nil { return }
-	args, err := windows.DecomposeCommandLine(config.BinaryPathName)
-	if err != nil || len(args) != 3 || !strings.EqualFold(args[0], exePath) || args[1] != "/tunnelservice" || !strings.EqualFold(args[2], oldPath) { return }
-	args[2] = newPath
-	config.BinaryPathName = windows.ComposeCommandLine(args)
-	err = service.UpdateConfig(config)
+	m, err := serviceManager(); if err != nil { return }
+	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return }
+	service, err := m.OpenService(serviceName); if err == windows.ERROR_SERVICE_DOES_NOT_EXIST { return } else if err != nil { return }; defer service.Close()
+	config, err := service.Config(); if err != nil { return }
+	exePath, err := os.Executable(); if err != nil { return }
+	args, err := windows.DecomposeCommandLine(config.BinaryPathName); if err != nil || len(args) != 3 || !strings.EqualFold(args[0], exePath) || args[1] != "/tunnelservice" || !strings.EqualFold(args[2], oldPath) { return }
+	args[2] = newPath; config.BinaryPathName = windows.ComposeCommandLine(args); err = service.UpdateConfig(config)
 }
