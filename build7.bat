@@ -30,7 +30,7 @@ if exist .deps\prepared goto :render
 
 :build
 	git apply windows7-update.patch
-	powershell -NoProfile -ExecutionPolicy Bypass -Command "$files=Get-ChildItem manager -Filter *.go; foreach($f in $files){$s=Get-Content $f.FullName -Raw; $s=$s.Replace('services.ServiceNameOfTunnel(', 'standaloneServiceNameOfTunnel(').Replace('services.PipePathOfTunnel(', 'standalonePipePathOfTunnel(').Replace('""github.com/amnezia-vpn/amneziawg-windows/v3/services""', ''); Set-Content -Path $f.FullName -Value $s -NoNewline}"
+	powershell -NoProfile -ExecutionPolicy Bypass -Command "$files=Get-ChildItem manager -Filter *.go; foreach($f in $files){$s=Get-Content $f.FullName -Raw; $s=$s.Replace('services.ServiceNameOfTunnel(', 'standaloneServiceNameOfTunnel(').Replace('services.PipePathOfTunnel(', 'standalonePipePathOfTunnel('); $s=[regex]::Replace($s,'(?m)^\s*\"github\.com/amnezia-vpn/amneziawg-windows/v3/services\"\s*\r?\n',''); Set-Content -Path $f.FullName -Value $s -NoNewline}"
 	for /f "tokens=3" %%a in ('findstr /r "Number.*=.*[0-9.]*" .\version\version.go') do set WIREGUARD_VERSION=%%a
 	set WIREGUARD_VERSION=%WIREGUARD_VERSION:"=%
 	for /f "tokens=1-4" %%a in ("%WIREGUARD_VERSION:.= % 0 0 0") do set WIREGUARD_VERSION_ARRAY=%%a,%%b,%%c,%%d
