@@ -11,8 +11,15 @@ on:
         description: 'Mark release as prerelease'
         required: false
         type: boolean
+        default: true
+      publish_release:
+        description: 'Publish a GitHub Release'
+        required: false
+        type: boolean
         default: false
   push:
+    branches:
+      - standalone-client
     tags:
       - 'v*'
 
@@ -42,12 +49,18 @@ jobs:
           $version = (Get-Content version\version.go | Select-String 'Number\s*=\s*"([^"]+)"').Matches.Groups[1].Value
           if (-not $version) { throw 'Could not determine version' }
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Get-ChildItem installer\dist -File -Recurse | Copy-Item -Destination release -Force
-          Get-ChildItem release -File | ForEach-Object {
-            $newName = "MyAmneziaWG-$version-Windows-x64.msi"
-            if ($_.Extension -ieq '.msi') { Rename-Item $_.FullName $newName -Force }
+          Get-ChildItem installer\dist -Filter '*.msi' -File | ForEach-Object {
+            Copy-Item $_.FullName -Destination release -Force
           }
-          Get-ChildItem release -File | ForEach-Object {
+          $expected = @(
+            "MyAmneziaWG-x86-Windows-$version.msi",
+            "MyAmneziaWG-amd64-Windows-$version.msi",
+            "MyAmneziaWG-arm64-Windows-$version.msi"
+          )
+          foreach ($name in $expected) {
+            if (-not (Test-Path (Join-Path release $name))) { throw "Missing MSI: $name" }
+          }
+          Get-ChildItem release -Filter '*.msi' -File | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)" | Out-File -Append release\SHA256SUMS.txt -Encoding ascii
           }
@@ -60,6 +73,7 @@ jobs:
           retention-days: 30
 
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' && inputs.publish_release }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}
