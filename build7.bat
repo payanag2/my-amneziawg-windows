@@ -16,7 +16,7 @@ if exist .deps\prepared goto :render
 	call :download go-legacy-win7.zip https://github.com/thongtech/go-legacy-win7/releases/download/v1.24.4-1/go-legacy-win7-1.24.4-1.windows_amd64.zip 321a11edf2083434ba95562fb5592e3159907a25396478e5aef5b018d657ac24 || goto :error
 	call :download llvm-mingw-20231128-ucrt-x86_64.zip https://github.com/mstorsjo/llvm-mingw/releases/download/20231128/llvm-mingw-20231128-ucrt-x86_64.zip 7a344dafa6942de2c1f4643b3eb5c5ce5317fbab671a887e4d39f326b331798f || goto :error
 	rem Mirror of https://imagemagick.org/download/binaries/ImageMagick-7.0.8-42-portable-Q16-x64.zip
-	call :download imagemagick.zip https://download.wireguard.com/windows-toolchain/distfiles/ImageMagick-7.0.8-42-portable-Q16-x64.zip 584e069f56456ce7dde40220948ff9568ac810688c892c5df7b6db902aa05aa "convert.exe colors.xml delegates.xml" || goto :error
+	call :download imagemagick.zip https://download.wireguard.com/windows-toolchain/distfiles/ImageMagick-7.0.8-42-portable-Q16-x64.zip 584e069f56456ce7dde40220948ff9568ac810688c892c5dfb7f6db902aa05aa "convert.exe colors.xml delegates.xml" || goto :error
 	rem Mirror of https://sourceforge.net/projects/ezwinports/files/make-4.2.1-without-guile-w32-bin.zip
 	call :download make.zip https://download.wireguard.com/windows-toolchain/distfiles/make-4.2.1-without-guile-w32-bin.zip 30641be9602712be76212b99df7209f4f8f518ba764cf564262bc9d6e4047cc7 "--strip-components 1 bin" || goto :error
 	call :download amneziawg-tools.zip https://github.com/amnezia-vpn/amneziawg-tools/archive/v3.0.20260805.zip c835f3c42d40ba3b606b19d6d235af9b4d2b68543766dd1175b95809125ecaee "--exclude wg-quick --strip-components 1" || goto :error
@@ -30,7 +30,7 @@ if exist .deps\prepared goto :render
 
 :build
 	git apply windows7-update.patch
-	powershell -NoProfile -ExecutionPolicy Bypass -Command "$files=Get-ChildItem manager -Filter *.go; foreach($f in $files){$s=Get-Content $f.FullName -Raw; $s=$s.Replace('services.ServiceNameOfTunnel(', 'standaloneServiceNameOfTunnel(').Replace('services.PipePathOfTunnel(', 'standalonePipePathOfTunnel('); Set-Content -Path $f.FullName -Value $s -NoNewline}"
+	powershell -NoProfile -ExecutionPolicy Bypass -Command "$files=Get-ChildItem manager -Filter *.go; foreach($f in $files){$s=Get-Content $f.FullName -Raw; $s=$s.Replace('services.ServiceNameOfTunnel(', 'standaloneServiceNameOfTunnel(').Replace('services.PipePathOfTunnel(', 'standalonePipePathOfTunnel('); if(-not $s.Contains('services.')){$s=$s.Replace("`n`t\"github.com/amnezia-vpn/amneziawg-windows/v3/services\"`n", "`n")}; Set-Content -Path $f.FullName -Value $s -NoNewline}"
 	for /f "tokens=3" %%a in ('findstr /r "Number.*=.*[0-9.]*" .\version\version.go') do set WIREGUARD_VERSION=%%a
 	set WIREGUARD_VERSION=%WIREGUARD_VERSION:"=%
 	for /f "tokens=1-4" %%a in ("%WIREGUARD_VERSION:.= % 0 0 0") do set WIREGUARD_VERSION_ARRAY=%%a,%%b,%%c,%%d
