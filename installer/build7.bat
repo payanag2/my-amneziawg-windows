@@ -31,6 +31,7 @@ if exist .deps\prepared goto :build
 	cd .. || goto :error
 
 :build
+	powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='customactions.c'; $s=Get-Content $p -Raw; $s=$s.Replace('AmneziaWGManager','MyAmneziaWGManager').Replace('AmneziaWGTunnel$','MyAmneziaWGTunnel$'); Set-Content -Path $p -Value $s -NoNewline"
 	if exist ..\sign.bat call ..\sign.bat
 	set PATH=%BUILDDIR%..\.deps\llvm-mingw-20231128-ucrt-x86_64\bin;%PATH%
 	set WIX=%BUILDDIR%.deps\wix\
