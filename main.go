@@ -12,12 +12,14 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"golang.org/x/sys/windows"
 
+	"github.com/amnezia-vpn/amneziawg-windows/v3/conf"
 	"github.com/amnezia-vpn/amneziawg-windows/v3/tunnel"
 
 	"github.com/amnezia-vpn/amneziawg-windows-client/elevate"
@@ -27,6 +29,16 @@ import (
 	"github.com/amnezia-vpn/amneziawg-windows-client/ui"
 	"github.com/amnezia-vpn/amneziawg-windows-client/updater"
 )
+
+const standaloneDataRoot = "MyAmneziaWG\\Data"
+
+func configureStandaloneDataRoot() {
+	programFiles := os.Getenv("ProgramFiles")
+	if programFiles == "" {
+		programFiles = `C:\\Program Files`
+	}
+	conf.PresetRootDirectory(filepath.Join(programFiles, standaloneDataRoot))
+}
 
 func setLogFile() {
 	logHandle, err := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
@@ -108,7 +120,6 @@ func checkForWow64() {
 }
 
 func checkForAdminGroup() {
-	// This is not a security check, but rather a user-confusion one.
 	var processToken windows.Token
 	err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY|windows.TOKEN_DUPLICATE, &processToken)
 	if err != nil {
@@ -116,14 +127,14 @@ func checkForAdminGroup() {
 	}
 	defer processToken.Close()
 	if !elevate.TokenIsElevatedOrElevatable(processToken) {
-                fatalf("AmneziaWG may only be used by users who are a member of the Builtin %s group.", elevate.AdminGroupName())
+                fatalf("MyAmneziaWG may only be used by users who are a member of the Builtin %s group.", elevate.AdminGroupName())
 	}
 }
 
 func checkForAdminDesktop() {
 	adminDesktop, err := elevate.IsAdminDesktop()
 	if !adminDesktop && err == nil {
-                fatalf("AmneziaWG is running, but the UI is only accessible from desktops of the Builtin %s group.", elevate.AdminGroupName())
+                fatalf("MyAmneziaWG is running, but the UI is only accessible from desktops of the Builtin %s group.", elevate.AdminGroupName())
 	}
 }
 
@@ -137,7 +148,7 @@ func execElevatedManagerServiceInstaller() error {
 		return err
 	}
 	os.Exit(0)
-	return windows.ERROR_UNHANDLED_EXCEPTION // Not reached
+	return windows.ERROR_UNHANDLED_EXCEPTION
 }
 
 func pipeFromHandleArgument(handleStr string) (*os.File, error) {
@@ -153,6 +164,7 @@ func main() {
 		panic("failed to restrict dll search path")
 	}
 
+	configureStandaloneDataRoot()
 	setLogFile()
 	checkForWow64()
 
@@ -169,70 +181,33 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "/installmanagerservice":
-		if len(os.Args) != 2 {
-			usage()
-		}
+		if len(os.Args) != 2 { usage() }
 		go ui.WaitForRaiseUIThenQuit()
 		err := manager.InstallManager()
 		if err != nil {
-			if err == manager.ErrManagerAlreadyRunning {
-				checkForAdminDesktop()
-			}
+			if err == manager.ErrManagerAlreadyRunning { checkForAdminDesktop() }
 			fatal(err)
 		}
 		checkForAdminDesktop()
 		time.Sleep(30 * time.Second)
-                fatalf("AmneziaWG system tray icon did not appear after 30 seconds.")
-		return
+		fatalf("MyAmneziaWG system tray icon did not appear after 30 seconds.")
 	case "/uninstallmanagerservice":
-		if len(os.Args) != 2 {
-			usage()
-		}
-		err := manager.UninstallManager()
-		if err != nil {
-			fatal(err)
-		}
-		return
+		if len(os.Args) != 2 { usage() }
+		if err := manager.UninstallManager(); err != nil { fatal(err) }
 	case "/managerservice":
-		if len(os.Args) != 2 {
-			usage()
-		}
-		err := manager.Run()
-		if err != nil {
-			fatal(err)
-		}
-		return
+		if len(os.Args) != 2 { usage() }
+		if err := manager.Run(); err != nil { fatal(err) }
 	case "/installtunnelservice":
-		if len(os.Args) != 3 {
-			usage()
-		}
-		err := manager.InstallTunnel(os.Args[2])
-		if err != nil {
-			fatal(err)
-		}
-		return
+		if len(os.Args) != 3 { usage() }
+		if err := manager.InstallTunnel(os.Args[2]); err != nil { fatal(err) }
 	case "/uninstalltunnelservice":
-		if len(os.Args) != 3 {
-			usage()
-		}
-		err := manager.UninstallTunnel(os.Args[2])
-		if err != nil {
-			fatal(err)
-		}
-		return
+		if len(os.Args) != 3 { usage() }
+		if err := manager.UninstallTunnel(os.Args[2]); err != nil { fatal(err) }
 	case "/tunnelservice":
-		if len(os.Args) != 3 {
-			usage()
-		}
-		err := tunnel.Run(os.Args[2])
-		if err != nil {
-			fatal(err)
-		}
-		return
+		if len(os.Args) != 3 { usage() }
+		if err := tunnel.Run(os.Args[2]); err != nil { fatal(err) }
 	case "/ui":
-		if len(os.Args) != 6 {
-			usage()
-		}
+		if len(os.Args) != 6 { usage() }
 		var processToken windows.Token
 		isAdmin := false
 		err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY|windows.TOKEN_DUPLICATE, &processToken)
@@ -242,76 +217,40 @@ func main() {
 		}
 		if isAdmin {
 			err := elevate.DropAllPrivileges(false)
-			if err != nil {
-				fatal(err)
-			}
+			if err != nil { fatal(err) }
 		}
-		readPipe, err := pipeFromHandleArgument(os.Args[2])
-		if err != nil {
-			fatal(err)
-		}
-		writePipe, err := pipeFromHandleArgument(os.Args[3])
-		if err != nil {
-			fatal(err)
-		}
-		eventPipe, err := pipeFromHandleArgument(os.Args[4])
-		if err != nil {
-			fatal(err)
-		}
+		readPipe, err := pipeFromHandleArgument(os.Args[2]); if err != nil { fatal(err) }
+		writePipe, err := pipeFromHandleArgument(os.Args[3]); if err != nil { fatal(err) }
+		eventPipe, err := pipeFromHandleArgument(os.Args[4]); if err != nil { fatal(err) }
 		ringlogger.Global, err = ringlogger.NewRingloggerFromInheritedMappingHandle(os.Args[5], "GUI")
-		if err != nil {
-			fatal(err)
-		}
+		if err != nil { fatal(err) }
 		manager.InitializeIPCClient(readPipe, writePipe, eventPipe)
 		ui.IsAdmin = isAdmin
 		ui.RunUI()
-		return
 	case "/dumplog":
-		if len(os.Args) != 2 && len(os.Args) != 3 {
-			usage()
-		}
+		if len(os.Args) != 2 && len(os.Args) != 3 { usage() }
 		outputHandle, err := windows.GetStdHandle(windows.STD_OUTPUT_HANDLE)
-		if err != nil {
-			fatal(err)
-		}
-		if outputHandle == 0 {
-			fatal("Stdout must be set")
-		}
+		if err != nil { fatal(err) }
+		if outputHandle == 0 { fatal("Stdout must be set") }
 		file := os.NewFile(uintptr(outputHandle), "stdout")
 		defer file.Close()
 		logPath, err := manager.LogFile(false)
-		if err != nil {
-			fatal(err)
-		}
-		err = ringlogger.DumpTo(logPath, file, len(os.Args) == 3 && os.Args[2] == "/tail")
-		if err != nil {
-			fatal(err)
-		}
-		return
+		if err != nil { fatal(err) }
+		if err = ringlogger.DumpTo(logPath, file, len(os.Args) == 3 && os.Args[2] == "/tail"); err != nil { fatal(err) }
 	case "/update":
-		if len(os.Args) != 2 {
-			usage()
-		}
+		if len(os.Args) != 2 { usage() }
 		for progress := range updater.DownloadVerifyAndExecute(0) {
 			if len(progress.Activity) > 0 {
 				if progress.BytesTotal > 0 || progress.BytesDownloaded > 0 {
 					var percent float64
-					if progress.BytesTotal > 0 {
-						percent = float64(progress.BytesDownloaded) / float64(progress.BytesTotal) * 100.0
-					}
+					if progress.BytesTotal > 0 { percent = float64(progress.BytesDownloaded) / float64(progress.BytesTotal) * 100.0 }
 					log.Printf("%s: %d/%d (%.2f%%)\n", progress.Activity, progress.BytesDownloaded, progress.BytesTotal, percent)
-				} else {
-					log.Println(progress.Activity)
-				}
+				} else { log.Println(progress.Activity) }
 			}
-			if progress.Error != nil {
-				log.Printf("Error: %v\n", progress.Error)
-			}
-			if progress.Complete || progress.Error != nil {
-				return
-			}
+			if progress.Error != nil { log.Printf("Error: %v\n", progress.Error) }
+			if progress.Complete || progress.Error != nil { return }
 		}
-		return
+	default:
+		usage()
 	}
-	usage()
 }
