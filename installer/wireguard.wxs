@@ -54,18 +54,12 @@
 		<Feature Id="WireGuardFeature" Title="MyAmneziaWG" Level="1"><ComponentGroupRef Id="WireGuardComponents" /></Feature>
 		<CustomAction Id="CheckWow64" BinaryKey="customactions.dll" DllEntry="CheckWow64" />
 		<InstallExecuteSequence><Custom Action="CheckWow64" After="FindRelatedProducts">NOT REMOVE</Custom></InstallExecuteSequence>
-		<CustomAction Id="EvaluateWireGuardServices" BinaryKey="customactions.dll" DllEntry="EvaluateWireGuardServices" />
-		<InstallExecuteSequence><Custom Action="EvaluateWireGuardServices" After="FindRelatedProducts" /></InstallExecuteSequence>
 		<CustomAction Id="LaunchApplicationAndAbort" BinaryKey="customactions.dll" DllEntry="LaunchApplicationAndAbort" />
 		<InstallExecuteSequence><Custom Action="LaunchApplicationAndAbort" After="CostFinalize">ProductState=5 AND NOT REMOVE AND NOT DO_NOT_LAUNCH</Custom></InstallExecuteSequence>
 		<CustomAction Id="EvaluateWireGuardComponents" BinaryKey="customactions.dll" DllEntry="EvaluateWireGuardComponents" />
 		<InstallExecuteSequence><Custom Action="EvaluateWireGuardComponents" After="ProcessComponents" /></InstallExecuteSequence>
 		<CustomAction Id="KillWireGuardProcesses" BinaryKey="customactions.dll" DllEntry="KillWireGuardProcesses" Execute="deferred" Impersonate="no" />
 		<InstallExecuteSequence><Custom Action="KillWireGuardProcesses" After="StopServices" /></InstallExecuteSequence>
-		<CustomAction Id="RemoveConfigFolder" BinaryKey="customactions.dll" DllEntry="RemoveConfigFolder" Execute="deferred" Impersonate="no" />
-		<InstallExecuteSequence><Custom Action="RemoveConfigFolder" After="DeleteServices" /></InstallExecuteSequence>
-		<CustomAction Id="RemoveAdapters" BinaryKey="customactions.dll" DllEntry="RemoveAdapters" Execute="deferred" Impersonate="no" />
-		<InstallExecuteSequence><Custom Action="RemoveAdapters" Before="RemoveFiles" /></InstallExecuteSequence>
 		<CustomAction Id="LaunchApplication" HideTarget="yes" Impersonate="no" Execute="deferred" FileKey="amneziawg.exe" ExeCommand="" Return="asyncNoWait" />
 		<InstallExecuteSequence><Custom Action="LaunchApplication" Before="InstallFinalize">(&amp;WireGuardFeature = 3) AND NOT DO_NOT_LAUNCH</Custom></InstallExecuteSequence>
 	</Product>
