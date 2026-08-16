@@ -20,7 +20,7 @@ if exist .deps\prepared goto :render
 	rem Mirror of https://sourceforge.net/projects/ezwinports/files/make-4.2.1-without-guile-w32-bin.zip
 	call :download make.zip https://download.wireguard.com/windows-toolchain/distfiles/make-4.2.1-without-guile-w32-bin.zip 30641be9602712be76212b99df7209f4f8f518ba764cf564262bc9d6e4047cc7 "--strip-components 1 bin" || goto :error
 	call :download amneziawg-tools.zip https://github.com/amnezia-vpn/amneziawg-tools/archive/v3.0.20260805.zip c835f3c42d40ba3b606b19d6d235af9b4d2b68543766dd1175b95809125ecaee "--exclude wg-quick --strip-components 1" || goto :error
-	call :download wintun.zip https://www.wintun.net/builds/wintun-0.14.1.zip 07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51 || goto :error
+	call :download wintun.zip https://www.wintun.net/builds/wintun-0.14.1.zip 07c256185d6ee365e02c4b9091c79ca7d2f24ef51 || goto :error
 	copy /y NUL prepared > NUL || goto :error
 	cd .. || goto :error
 
@@ -30,6 +30,8 @@ if exist .deps\prepared goto :render
 
 :build
 	git apply windows7-update.patch || goto :error
+	echo [+] Patching AmneziaWG Windows dependency for standalone service names
+	powershell -NoProfile -ExecutionPolicy Bypass -File "%BUILDDIR%build\patch-amneziawg-dependency.ps1" || goto :error
 	for /f "tokens=3" %%a in ('findstr /r "Number.*=.*[0-9.]*" .\version\version.go') do set WIREGUARD_VERSION=%%a
 	set WIREGUARD_VERSION=%WIREGUARD_VERSION:"=%
 	for /f "tokens=1-4" %%a in ("%WIREGUARD_VERSION:.= % 0 0 0") do set WIREGUARD_VERSION_ARRAY=%%a,%%b,%%c,%%d
