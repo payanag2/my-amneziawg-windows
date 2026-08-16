@@ -12,8 +12,8 @@ if (-not (Test-Path $namesFile)) {
 }
 
 $content = Get-Content $namesFile -Raw
-$content = $content.Replace('AmneziaWGTunnel$' + '" + tunnelName', 'MyAmneziaWGTunnel$' + '" + tunnelName')
-$content = $content.Replace('ProtectedPrefix\\Administrators\\AmneziaWG\\` + tunnelName', 'ProtectedPrefix\\Administrators\\MyAmneziaWG\\` + tunnelName')
+$content = $content.Replace('AmneziaWGTunnel$" + tunnelName', 'MyAmneziaWGTunnel$" + tunnelName')
+$content = $content.Replace('AmneziaWG\` + tunnelName', 'MyAmneziaWG\` + tunnelName')
 
 if ($content -notmatch 'MyAmneziaWGTunnel\$') {
     throw 'Service name patch was not applied.'
