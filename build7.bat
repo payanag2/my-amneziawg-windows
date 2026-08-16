@@ -30,7 +30,6 @@ if exist .deps\prepared goto :render
 
 :build
 	git apply windows7-update.patch || goto :error
-	powershell -NoProfile -ExecutionPolicy Bypass -File "%BUILDDIR%standalone-build.ps1" || goto :error
 	for /f "tokens=3" %%a in ('findstr /r "Number.*=.*[0-9.]*" .\version\version.go') do set WIREGUARD_VERSION=%%a
 	set WIREGUARD_VERSION=%WIREGUARD_VERSION:"=%
 	for /f "tokens=1-4" %%a in ("%WIREGUARD_VERSION:.= % 0 0 0") do set WIREGUARD_VERSION_ARRAY=%%a,%%b,%%c,%%d
