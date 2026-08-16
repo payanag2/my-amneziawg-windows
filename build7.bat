@@ -29,8 +29,8 @@ if exist .deps\prepared goto :render
 	for %%a in ("ui\icon\*.svg") do convert -background none "%%~fa" -define icon:auto-resize="256,192,128,96,64,48,40,32,24,20,16" -compress zip "%%~dpna.ico" || goto :error
 
 :build
-	git apply windows7-update.patch
-	powershell -NoProfile -ExecutionPolicy Bypass -Command "$files=Get-ChildItem manager -Filter *.go; foreach($f in $files){$s=Get-Content $f.FullName -Raw; $s=$s.Replace('services.ServiceNameOfTunnel(', 'standaloneServiceNameOfTunnel(').Replace('services.PipePathOfTunnel(', 'standalonePipePathOfTunnel('); $s=[regex]::Replace($s,'(?m)^\s*\"github\.com/amnezia-vpn/amneziawg-windows/v3/services\"\s*\r?\n',''); Set-Content -Path $f.FullName -Value $s -NoNewline}"
+	git apply windows7-update.patch || goto :error
+	powershell -NoProfile -ExecutionPolicy Bypass -File "%BUILDDIR%standalone-build.ps1" || goto :error
 	for /f "tokens=3" %%a in ('findstr /r "Number.*=.*[0-9.]*" .\version\version.go') do set WIREGUARD_VERSION=%%a
 	set WIREGUARD_VERSION=%WIREGUARD_VERSION:"=%
 	for /f "tokens=1-4" %%a in ("%WIREGUARD_VERSION:.= % 0 0 0") do set WIREGUARD_VERSION_ARRAY=%%a,%%b,%%c,%%d
