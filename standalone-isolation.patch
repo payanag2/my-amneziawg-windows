@@ -1,0 +1,90 @@
+diff --git a/manager/install.go b/manager/install.go
+--- a/manager/install.go
++++ b/manager/install.go
+@@ -14,7 +14,6 @@ import (
+ 	"golang.org/x/sys/windows/svc"
+ 	"golang.org/x/sys/windows/svc/mgr"
+ 
+ 	"github.com/amnezia-vpn/amneziawg-windows/v3/conf"
+-	"github.com/amnezia-vpn/amneziawg-windows/v3/services"
+ )
+@@ -53,7 +52,7 @@ func InstallTunnel(configPath string) error {
+ 	m, err := serviceManager(); if err != nil { return err }
+ 	path, err := os.Executable(); if err != nil { return nil }
+ 	name, err := conf.NameFromPath(configPath); if err != nil { return err }
+-	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return err }
++	serviceName, err := standaloneServiceNameOfTunnel(name); if err != nil { return err }
+@@ -76,7 +75,7 @@ func UninstallTunnel(name string) error {
+ 	m, err := serviceManager(); if err != nil { return err }
+ 	path, err := os.Executable(); if err != nil { return err }
+-	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return err }
++	serviceName, err := standaloneServiceNameOfTunnel(name); if err != nil { return err }
+@@ -90,7 +89,7 @@ func changeTunnelServiceConfigFilePath(name, oldPath, newPath string) {
+ 	defer func() { if err != nil { log.Printf("Unable to change tunnel service command line argument from %#q to %#q: %v", oldPath, newPath, err) } }()
+ 	m, err := serviceManager(); if err != nil { return }
+-	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return }
++	serviceName, err := standaloneServiceNameOfTunnel(name); if err != nil { return }
+*** Update File: manager/ipc_server.go
+@@ -19,7 +19,6 @@ import (
+ 
+ 	"github.com/amnezia-vpn/amneziawg-windows-client/updater"
+ 	"github.com/amnezia-vpn/amneziawg-windows/v3/conf"
+-	"github.com/amnezia-vpn/amneziawg-windows/v3/services"
+ )
+@@ -100,7 +99,7 @@ func (s *ManagerService) Stop(tunnelName string) error {
+ }
+ 
+ func (s *ManagerService) WaitForStop(tunnelName string) error {
+-	serviceName, err := services.ServiceNameOfTunnel(tunnelName)
++	serviceName, err := standaloneServiceNameOfTunnel(tunnelName)
+@@ -126,7 +125,7 @@ func (s *ManagerService) State(tunnelName string) (TunnelState, error) {
+ }
+ 
+ func (s *ManagerService) State(tunnelName string) (TunnelState, error) {
+-	serviceName, err := services.ServiceNameOfTunnel(tunnelName)
++	serviceName, err := standaloneServiceNameOfTunnel(tunnelName)
+*** Update File: manager/ipc_uapi.go
+--- a/manager/ipc_uapi.go
++++ b/manager/ipc_uapi.go
+@@ -12,7 +12,6 @@ import (
+ 	"golang.org/x/sys/windows"
+ 
+ 	"github.com/amnezia-vpn/amneziawg-go/v3/ipc/namedpipe"
+-	"github.com/amnezia-vpn/amneziawg-windows/v3/services"
+ )
+@@ -32,7 +31,7 @@ func connectTunnelServicePipe(tunnelName string) (*connectedTunnel, error) {
+ 	if ok {
+ 		pipe.Lock()
+ 		return pipe, nil
+ 	}
+-	pipePath, err := services.PipePathOfTunnel(tunnelName)
++	pipePath, err := standalonePipePathOfTunnel(tunnelName)
+*** Add File: manager/standalone_services.go
++/* SPDX-License-Identifier: MIT
++ *
++ * Copyright (C) 2019-2026 MyAmneziaWG. All Rights Reserved.
++ */
++
++package manager
++
++import (
++	"errors"
++
++	"github.com/amnezia-vpn/amneziawg-windows/v3/conf"
++)
++
++// These names intentionally differ from the upstream AmneziaWG names so two
++// installations can coexist without sharing Windows services or named pipes.
++func standaloneServiceNameOfTunnel(tunnelName string) (string, error) {
++	if !conf.TunnelNameIsValid(tunnelName) {
++		return "", errors.New("Tunnel name is not valid")
++	}
++	return "MyAmneziaWGTunnel$" + tunnelName, nil
++}
++
++func standalonePipePathOfTunnel(tunnelName string) (string, error) {
++	if !conf.TunnelNameIsValid(tunnelName) {
++		return "", errors.New("Tunnel name is not valid")
++	}
++	return `\\.\pipe\ProtectedPrefix\Administrators\MyAmneziaWG\` + tunnelName, nil
++}
