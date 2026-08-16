@@ -25,6 +25,8 @@ diff --git a/manager/install.go b/manager/install.go
 -	serviceName, err := services.ServiceNameOfTunnel(name); if err != nil { return }
 +	serviceName, err := standaloneServiceNameOfTunnel(name); if err != nil { return }
 *** Update File: manager/ipc_server.go
+--- a/manager/ipc_server.go
++++ b/manager/ipc_server.go
 @@ -19,7 +19,6 @@ import (
  
  	"github.com/amnezia-vpn/amneziawg-windows-client/updater"
@@ -32,12 +34,12 @@ diff --git a/manager/install.go b/manager/install.go
 -	"github.com/amnezia-vpn/amneziawg-windows/v3/services"
  )
 @@ -100,7 +99,7 @@ func (s *ManagerService) Stop(tunnelName string) error {
- }
  
  func (s *ManagerService) WaitForStop(tunnelName string) error {
 -	serviceName, err := services.ServiceNameOfTunnel(tunnelName)
 +	serviceName, err := standaloneServiceNameOfTunnel(tunnelName)
 @@ -126,7 +125,7 @@ func (s *ManagerService) State(tunnelName string) (TunnelState, error) {
+ 	return err
  }
  
  func (s *ManagerService) State(tunnelName string) (TunnelState, error) {
@@ -59,32 +61,4 @@ diff --git a/manager/install.go b/manager/install.go
  	}
 -	pipePath, err := services.PipePathOfTunnel(tunnelName)
 +	pipePath, err := standalonePipePathOfTunnel(tunnelName)
-*** Add File: manager/standalone_services.go
-+/* SPDX-License-Identifier: MIT
-+ *
-+ * Copyright (C) 2019-2026 MyAmneziaWG. All Rights Reserved.
-+ */
-+
-+package manager
-+
-+import (
-+	"errors"
-+
-+	"github.com/amnezia-vpn/amneziawg-windows/v3/conf"
-+)
-+
-+// These names intentionally differ from the upstream AmneziaWG names so two
-+// installations can coexist without sharing Windows services or named pipes.
-+func standaloneServiceNameOfTunnel(tunnelName string) (string, error) {
-+	if !conf.TunnelNameIsValid(tunnelName) {
-+		return "", errors.New("Tunnel name is not valid")
-+	}
-+	return "MyAmneziaWGTunnel$" + tunnelName, nil
-+}
-+
-+func standalonePipePathOfTunnel(tunnelName string) (string, error) {
-+	if !conf.TunnelNameIsValid(tunnelName) {
-+		return "", errors.New("Tunnel name is not valid")
-+	}
-+	return `\\.\pipe\ProtectedPrefix\Administrators\MyAmneziaWG\` + tunnelName, nil
-+}
+*** End Patch
